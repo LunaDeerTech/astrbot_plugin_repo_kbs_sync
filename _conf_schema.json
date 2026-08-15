@@ -1,0 +1,133 @@
+{
+  "repository_url": {
+    "type": "string",
+    "description": "Git 仓库地址",
+    "hint": "填写仓库克隆地址，例如 https://github.com/example/docs.git 或 git@github.com:example/docs.git。也支持 GitHub 的 /tree/分支/路径链接。",
+    "default": ""
+  },
+  "branch": {
+    "type": "string",
+    "description": "同步分支",
+    "hint": "留空时使用远程仓库默认分支；如果 repository_url 是 /tree/分支/... 链接，会优先识别其中的分支。",
+    "default": ""
+  },
+  "sync_rules": {
+    "type": "template_list",
+    "description": "仓库路径到知识库的映射",
+    "hint": "每条规则会递归扫描 path 下的所有白名单文件，并同步到对应知识库。path 使用仓库根目录相对路径，填写 . 表示整个仓库。",
+    "default": [],
+    "templates": {
+      "path_to_kb": {
+        "name": "路径 → 知识库",
+        "hint": "同一个仓库可以配置多条规则；规则重叠时，同一文件会同步到每个匹配的知识库。",
+        "display_item": "path",
+        "items": {
+          "path": {
+            "type": "string",
+            "description": "仓库相对路径",
+            "hint": "例如 docs、manuals/api 或 docs/intro.md；不能使用绝对路径或 ..。",
+            "default": "."
+          },
+          "kb_name": {
+            "type": "string",
+            "description": "目标知识库名称",
+            "hint": "知识库不存在时会自动创建，因此这里直接填写希望使用的名称即可。",
+            "default": ""
+          },
+          "enabled": {
+            "type": "bool",
+            "description": "启用此映射",
+            "default": true
+          }
+        }
+      }
+    }
+  },
+  "allowed_file_types": {
+    "type": "list",
+    "description": "文件类型白名单",
+    "hint": "默认只扫描 .md 和 .mdx；后缀不区分大小写，也可以加入 .markdown 等 Markdown 后缀。",
+    "items": {
+      "type": "string",
+      "description": "文件后缀"
+    },
+    "default": [
+      ".md",
+      ".mdx"
+    ]
+  },
+  "ignore_paths": {
+    "type": "list",
+    "description": "全局忽略路径",
+    "hint": "填写仓库相对文件或目录路径；留空表示不忽略任何路径。",
+    "items": {
+      "type": "string",
+      "description": "仓库相对路径"
+    },
+    "default": []
+  },
+  "preprocess_mdx": {
+    "type": "bool",
+    "description": "上传前预处理 MDX",
+    "hint": "移除 import/export、MDX 组件标签和 JSX 表达式，保留组件内部的 Markdown 文本，然后按 Markdown 上传。",
+    "default": true
+  },
+  "chunk_size": {
+    "type": "int",
+    "description": "分块大小",
+    "hint": "知识库文档分块大小，默认 512；调整后会触发相关文档全量重入库。",
+    "default": 512
+  },
+  "chunk_overlap": {
+    "type": "int",
+    "description": "分块重叠",
+    "hint": "知识库文档分块重叠大小，默认 50；调整后会触发相关文档全量重入库。",
+    "default": 50
+  },
+  "embedding_batch_size": {
+    "type": "int",
+    "description": "嵌入批处理大小",
+    "hint": "上传时每批次送入嵌入模型的文本块数量，默认 64。",
+    "default": 64
+  },
+  "embedding_tasks_limit": {
+    "type": "int",
+    "description": "嵌入并发任务数",
+    "hint": "上传时同时运行的嵌入批次数，默认 1。",
+    "default": 1
+  },
+  "embedding_max_retries": {
+    "type": "int",
+    "description": "嵌入最大重试次数",
+    "hint": "嵌入请求临时失败时的最大重试次数，默认 7。",
+    "default": 7
+  },
+  "notify_owner_enabled": {
+    "type": "bool",
+    "description": "启用主人通知",
+    "hint": "按 AstrBot 全局 admins_id 向主人发送检测和同步通知。",
+    "default": false
+  },
+  "notify_group_enabled": {
+    "type": "bool",
+    "description": "启用群通知",
+    "hint": "向指定群发送检测和同步通知。当前使用 aiocqhttp 平台。",
+    "default": false
+  },
+  "notify_group_id": {
+    "type": "string",
+    "description": "通知群号",
+    "default": ""
+  },
+  "auto_sync_enabled": {
+    "type": "bool",
+    "description": "启用自动同步",
+    "hint": "按间隔检查远端分支提交；只有检测到远端提交或配置变化时才同步。",
+    "default": true
+  },
+  "auto_sync_interval_hours": {
+    "type": "int",
+    "description": "自动检查间隔（小时）",
+    "default": 24
+  }
+}
