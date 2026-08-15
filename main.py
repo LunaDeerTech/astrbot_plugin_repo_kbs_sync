@@ -13,14 +13,14 @@ from astrbot.api.message_components import Plain
 from astrbot.core import logger
 from astrbot.core.message.message_event_result import MessageChain
 
-from repo_kbs_sync.config import ConfigError, PluginSettings
-from repo_kbs_sync.knowledge_base import (
+from .repo_kbs_sync.config import ConfigError, PluginSettings
+from .repo_kbs_sync.knowledge_base import (
     KnowledgeBaseGateway,
     KnowledgeBaseSyncStats,
 )
-from repo_kbs_sync.repository import GitClient, GitRepositoryError, RemoteRepository
-from repo_kbs_sync.scanner import scan_repository
-from repo_kbs_sync.state import SyncState
+from .repo_kbs_sync.repository import GitClient, GitRepositoryError, RemoteRepository
+from .repo_kbs_sync.scanner import scan_repository
+from .repo_kbs_sync.state import SyncState
 
 
 STATE_KEY = "repo_kbs_sync:state"
