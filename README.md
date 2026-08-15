@@ -22,6 +22,7 @@
 {
   "repository_url": "https://github.com/example/team-docs.git",
   "branch": "main",
+  "git_proxy": "http://127.0.0.1:7890",
   "embedding_provider_id": "my-embedding-provider",
   "rerank_provider_id": "my-rerank-provider",
   "sync_rules": [
@@ -55,6 +56,8 @@
 ```
 
 `sync_rules.path` 是仓库根目录相对路径：填写目录会递归扫描其全部子目录，填写文件则只同步该文件，填写 `.` 表示整个仓库。规则可以重叠；同一个文件匹配多条规则时，会同步到每个对应知识库。
+
+`git_proxy` 是可选的 Git 代理 URL，支持 HTTP、HTTPS、SOCKS4、SOCKS5（包括 `socks5h`）代理。插件只在查询远程仓库、获取分支和克隆仓库时临时使用 `http.proxy`，不会修改系统或全局 Git 配置。SSH remote（`git@host:path`）不使用该 HTTP 代理配置。
 
 ## AstrBot WebUI 配置
 

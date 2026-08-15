@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any, Mapping
+from urllib.parse import urlparse
 
 
 DEFAULT_ALLOWED_FILE_TYPES = (".md", ".mdx")
@@ -45,6 +46,7 @@ class SyncRule:
 class PluginSettings:
     repository_url: str
     branch: str | None
+    git_proxy: str | None
     sync_rules: tuple[SyncRule, ...]
     embedding_provider_id: str | None
     rerank_provider_id: str | None
@@ -74,6 +76,7 @@ class PluginSettings:
             raise ConfigError("请在插件配置中填写 repository_url。")
 
         branch = _optional_string(config.get("branch", config.get("remote_branch")))
+        git_proxy = _parse_git_proxy(config.get("git_proxy"))
         sync_rules = _parse_sync_rules(config.get("sync_rules", []))
         if not sync_rules:
             raise ConfigError("请至少配置一条启用中的 sync_rules 路径映射。")
@@ -90,6 +93,7 @@ class PluginSettings:
         return cls(
             repository_url=repository_url,
             branch=branch,
+            git_proxy=git_proxy,
             sync_rules=tuple(sync_rules),
             embedding_provider_id=embedding_provider_id,
             rerank_provider_id=rerank_provider_id,
@@ -273,6 +277,41 @@ def _optional_string(value: Any) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
+
+
+def _parse_git_proxy(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str):
+        raise ConfigError("git_proxy 必须是字符串。")
+
+    proxy = value.strip()
+    if not proxy:
+        return None
+    if "\x00" in proxy or any(char.isspace() for char in proxy):
+        raise ConfigError("git_proxy 不能包含空白字符或 NUL 字符。")
+
+    try:
+        parsed = urlparse(proxy)
+        hostname = parsed.hostname
+        parsed.port
+    except ValueError as exc:
+        raise ConfigError("git_proxy 必须是有效的代理 URL。") from exc
+
+    allowed_schemes = {
+        "http",
+        "https",
+        "socks4",
+        "socks4a",
+        "socks5",
+        "socks5h",
+    }
+    if parsed.scheme.lower() not in allowed_schemes or not hostname:
+        raise ConfigError(
+            "git_proxy 必须是带协议和主机的代理 URL，例如 "
+            "http://127.0.0.1:7890。"
+        )
+    return proxy
 
 
 def _as_bool(value: Any, default: bool) -> bool:

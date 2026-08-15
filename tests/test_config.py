@@ -25,6 +25,7 @@ class ConfigTests(unittest.TestCase):
             {
                 "embedding_provider_id": "embedding-one",
                 "rerank_provider_id": "rerank-one",
+                "git_proxy": "socks5h://127.0.0.1:7891",
                 "notify_owner_enabled": True,
                 "notify_group_enabled": True,
                 "notify_group_id": "123456",
@@ -36,6 +37,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(settings.allowed_file_types, (".md", ".mdx"))
         self.assertEqual(settings.embedding_provider_id, "embedding-one")
         self.assertEqual(settings.rerank_provider_id, "rerank-one")
+        self.assertEqual(settings.git_proxy, "socks5h://127.0.0.1:7891")
         self.assertTrue(settings.notify_owner_enabled)
         self.assertTrue(settings.notify_group_enabled)
         self.assertEqual(settings.notify_group_id, "123456")
@@ -59,5 +61,11 @@ class ConfigTests(unittest.TestCase):
     def test_empty_rules_are_rejected(self):
         config = self.make_config()
         config["sync_rules"] = []
+        with self.assertRaises(ConfigError):
+            PluginSettings.from_mapping(config)
+
+    def test_invalid_git_proxy_is_rejected(self):
+        config = self.make_config()
+        config["git_proxy"] = "127.0.0.1:7890"
         with self.assertRaises(ConfigError):
             PluginSettings.from_mapping(config)

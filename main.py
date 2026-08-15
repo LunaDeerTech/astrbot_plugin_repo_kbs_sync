@@ -218,6 +218,7 @@ class Main(star.Star):
 
     async def _sync_repository(self) -> RepositorySyncResult:
         settings = PluginSettings.from_mapping(self.config)
+        self._git.set_proxy(settings.git_proxy)
         repository = RemoteRepository.from_config(
             settings.repository_url,
             settings.branch,
@@ -318,6 +319,7 @@ class Main(star.Star):
         )
 
     async def _has_sync_changes(self, settings: PluginSettings) -> bool:
+        self._git.set_proxy(settings.git_proxy)
         repository = RemoteRepository.from_config(
             settings.repository_url,
             settings.branch,

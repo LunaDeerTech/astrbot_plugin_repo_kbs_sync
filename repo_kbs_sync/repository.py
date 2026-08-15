@@ -47,15 +47,25 @@ class RemoteRepository:
 class GitClient:
     """Async, argument-list-only wrapper around the system Git executable."""
 
+    def __init__(self, proxy: str | None = None) -> None:
+        self.proxy = proxy
+
+    def set_proxy(self, proxy: str | None) -> None:
+        self.proxy = proxy
+
     async def run(
         self,
         args: list[str],
         cwd: Path | None = None,
         remote_url: str | None = None,
     ) -> str:
+        git_args = list(args)
+        if self.proxy and remote_url:
+            git_args = ["-c", f"http.proxy={self.proxy}", *git_args]
+
         process = await asyncio.create_subprocess_exec(
             "git",
-            *args,
+            *git_args,
             cwd=str(cwd) if cwd else None,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -65,7 +75,9 @@ class GitClient:
             detail = stderr.decode("utf-8", errors="replace").strip()
             if remote_url:
                 detail = detail.replace(remote_url, _redact_url(remote_url))
-            command = "git " + " ".join(_redact_argument(arg) for arg in args)
+            command = "git " + " ".join(
+                _redact_argument(arg) for arg in git_args
+            )
             raise GitRepositoryError(
                 f"{command} 执行失败：{detail or '未知 Git 错误'}"
             )
@@ -272,6 +284,9 @@ def _redact_url(value: str) -> str:
 
 
 def _redact_argument(argument: str) -> str:
+    if argument.startswith("http.proxy="):
+        key, _, value = argument.partition("=")
+        return f"{key}={_redact_url(value)}"
     if "@" in argument and "://" in argument:
         return _redact_url(argument)
     return argument

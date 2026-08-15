@@ -1,6 +1,7 @@
 import unittest
+from unittest.mock import AsyncMock, patch
 
-from repo_kbs_sync.repository import RemoteRepository, _parse_changed_paths
+from repo_kbs_sync.repository import GitClient, RemoteRepository, _parse_changed_paths
 from repo_kbs_sync.state import SyncState
 
 
@@ -37,3 +38,29 @@ class StateAndRepositoryTests(unittest.TestCase):
             _parse_changed_paths(output),
             {"guides/a.md", "guides/new.md", "guides/deleted.md"},
         )
+
+
+class GitClientTests(unittest.IsolatedAsyncioTestCase):
+    async def test_proxy_is_applied_only_to_remote_git_commands(self):
+        process = AsyncMock()
+        process.returncode = 0
+        process.communicate.return_value = (b"ok", b"")
+
+        with patch(
+            "repo_kbs_sync.repository.asyncio.create_subprocess_exec",
+            new=AsyncMock(return_value=process),
+        ) as create_process:
+            client = GitClient("http://127.0.0.1:7890")
+            await client.run(
+                ["ls-remote", "https://example.com/docs.git"],
+                remote_url="https://example.com/docs.git",
+            )
+            await client.run(["diff", "HEAD~1", "HEAD"])
+
+        remote_call = create_process.await_args_list[0].args
+        local_call = create_process.await_args_list[1].args
+        self.assertEqual(
+            remote_call[:4],
+            ("git", "-c", "http.proxy=http://127.0.0.1:7890", "ls-remote"),
+        )
+        self.assertEqual(local_call[:2], ("git", "diff"))

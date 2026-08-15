@@ -11,6 +11,12 @@
     "hint": "留空时使用远程仓库默认分支；如果 repository_url 是 /tree/分支/... 链接，会优先识别其中的分支。",
     "default": ""
   },
+  "git_proxy": {
+    "type": "string",
+    "description": "Git 代理",
+    "hint": "可选，填写代理 URL，例如 http://127.0.0.1:7890 或 socks5h://127.0.0.1:7891；仅用于本插件发起的远程 Git 请求。",
+    "default": ""
+  },
   "embedding_provider_id": {
     "type": "string",
     "description": "嵌入模型提供商 ID",
