@@ -19,8 +19,12 @@ class SourceDocument:
     @property
     def document_name(self) -> str:
         # Keep the repository-relative name as the stable KB document key.
-        # MDX is uploaded with file_type=md after conversion, but retaining
-        # the source suffix makes rename/delete behavior unambiguous.
+        # AstrBot's markitdown parser infers the format from the file_name
+        # suffix (not file_type) and has no ".mdx" converter, so MDX is
+        # uploaded under a ".md" name after conversion.  source_path keeps
+        # the ".mdx" suffix so rename/delete tracking stays unambiguous.
+        if self.is_mdx:
+            return self.source_path.with_suffix(".md").as_posix()
         return self.source_path.as_posix()
 
     @property

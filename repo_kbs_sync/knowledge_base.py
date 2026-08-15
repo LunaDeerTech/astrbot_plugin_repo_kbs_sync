@@ -117,8 +117,6 @@ class KnowledgeBaseGateway:
         for source_document in plan.upload_documents:
             content = source_document.read_for_upload(self.settings.preprocess_mdx)
             file_type = source_document.upload_file_type
-            if source_document.is_mdx and self.settings.preprocess_mdx:
-                file_type = "md"
 
             async def progress_callback(stage: str, current: int, total: int) -> None:
                 logger.info(

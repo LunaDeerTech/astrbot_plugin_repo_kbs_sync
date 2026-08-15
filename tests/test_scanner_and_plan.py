@@ -37,8 +37,25 @@ class ScannerAndPlanTests(unittest.TestCase):
                 self.settings.ignore_paths,
             )
 
-        self.assertEqual(sorted(result["Guides"]), ["guides/api/auth.mdx", "guides/intro.md"])
-        self.assertEqual(sorted(result["API"]), ["guides/api/auth.mdx"])
+        self.assertEqual(sorted(result["Guides"]), ["guides/api/auth.md", "guides/intro.md"])
+        self.assertEqual(sorted(result["API"]), ["guides/api/auth.md"])
+
+    def test_mdx_document_name_uses_md_suffix(self):
+        with TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            (root / "guides").mkdir()
+            (root / "guides/intro.md").write_text("intro", encoding="utf-8")
+            (root / "guides/api.mdx").write_text("api", encoding="utf-8")
+            source = scan_repository(
+                root,
+                [self.settings.enabled_rules[0]],
+                self.settings.allowed_file_types,
+                [],
+            )["Guides"]
+
+        by_name = {doc.document_name: doc for doc in source.values()}
+        self.assertEqual(set(by_name), {"guides/intro.md", "guides/api.md"})
+        self.assertEqual(by_name["guides/api.md"].source_path.as_posix(), "guides/api.mdx")
 
     def test_first_run_does_not_delete_unmanaged_documents(self):
         with TemporaryDirectory() as raw_root:
