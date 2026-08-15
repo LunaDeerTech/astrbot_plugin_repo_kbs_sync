@@ -12,7 +12,6 @@ from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.message_components import Plain
 from astrbot.core import logger
 from astrbot.core.message.message_event_result import MessageChain
-from astrbot.core.star.star_tools import StarTools
 
 from repo_kbs_sync.config import ConfigError, PluginSettings
 from repo_kbs_sync.knowledge_base import (
@@ -80,9 +79,16 @@ class Main(star.Star):
             async with self._sync_lock:
                 yield event.plain_result("开始同步仓库到多个知识库，请稍候。")
                 try:
+                    settings = PluginSettings.from_mapping(self.config)
+                    await self._send_notifications(
+                        self._format_sync_start_notification(settings)
+                    )
                     result = await self._sync_repository()
                     await self._record_state(result)
                     await self._schedule_next_auto_check_after_run()
+                    await self._send_notifications(
+                        self._format_sync_success_message(result)
+                    )
                 except Exception as exc:
                     logger.error("repo_kbs_sync manual sync failed: %s", exc, exc_info=True)
                     yield event.plain_result(f"仓库知识库同步失败：{exc}")
@@ -91,6 +97,50 @@ class Main(star.Star):
             yield event.plain_result(self._format_sync_success_message(result))
         finally:
             self._manual_sync_pending = False
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("repo_kbs_sync_providers")
+    async def list_knowledge_base_providers(self, event: AstrMessageEvent):
+        provider_manager = self.context.kb_manager.provider_manager
+        lines = ["可用于 repo_kbs_sync 配置的知识库模型提供商："]
+
+        embedding_providers = getattr(
+            provider_manager,
+            "embedding_provider_insts",
+            [],
+        )
+        lines.append("Embedding Providers:")
+        lines.extend(
+            f"- {self._format_provider_item(provider)}"
+            for provider in embedding_providers
+        )
+        if not embedding_providers:
+            lines.append("- （未找到）")
+
+        rerank_providers = getattr(provider_manager, "rerank_provider_insts", [])
+        lines.append("Rerank Providers:")
+        lines.extend(
+            f"- {self._format_provider_item(provider)}"
+            for provider in rerank_providers
+        )
+        if not rerank_providers:
+            lines.append("- （未找到，可留空）")
+
+        lines.append("请将每行的 ID 填入插件配置 embedding_provider_id 或 rerank_provider_id。")
+        yield event.plain_result("\n".join(lines))
+
+    @staticmethod
+    def _format_provider_item(provider: Any) -> str:
+        try:
+            metadata = provider.meta()
+            provider_id = getattr(metadata, "id", "unknown")
+            model = getattr(metadata, "model", None)
+            provider_type = getattr(metadata, "type", None)
+            suffix = f"，model={model}" if model else ""
+            type_suffix = f"，type={provider_type}" if provider_type else ""
+            return f"id={provider_id}{type_suffix}{suffix}"
+        except Exception as exc:
+            return f"（无法读取提供商信息：{exc}）"
 
     def _restart_auto_sync_task(self) -> None:
         if self._auto_sync_task and not self._auto_sync_task.done():
@@ -366,20 +416,42 @@ class Main(star.Star):
                 logger.warning("repo_kbs_sync notification failed: %s", result)
 
     async def _send_private_notification(self, user_id: str, text: str) -> None:
-        await StarTools.send_message_by_id(
-            "PrivateMessage",
-            user_id,
+        await self.context.send_message(
+            self._notification_session("FriendMessage", user_id),
             MessageChain([Plain(text)]),
-            platform="aiocqhttp",
         )
 
     async def _send_group_notification(self, group_id: str, text: str) -> None:
-        await StarTools.send_message_by_id(
-            "GroupMessage",
-            group_id,
+        await self.context.send_message(
+            self._notification_session("GroupMessage", group_id),
             MessageChain([Plain(text)]),
-            platform="aiocqhttp",
         )
+
+    def _notification_session(self, message_type: str, session_id: str) -> str:
+        """Build a current AstrBot unified message origin for aiocqhttp."""
+
+        platform_manager = getattr(self.context, "platform_manager", None)
+        if platform_manager is None:
+            raise RuntimeError("AstrBot 平台管理器不可用，无法发送通知。")
+
+        get_insts = getattr(platform_manager, "get_insts", None)
+        platforms = (
+            get_insts()
+            if callable(get_insts)
+            else getattr(platform_manager, "platform_insts", [])
+        )
+        for platform in platforms or []:
+            try:
+                metadata = platform.meta()
+            except Exception:
+                continue
+            platform_name = getattr(metadata, "name", None)
+            platform_id = getattr(metadata, "id", None)
+            if platform_name == "aiocqhttp" or platform_id == "aiocqhttp":
+                if isinstance(platform_id, str) and platform_id.strip():
+                    return f"{platform_id.strip()}:{message_type}:{session_id}"
+
+        raise RuntimeError("未找到可用的 aiocqhttp 平台，无法发送通知。")
 
     def _format_sync_start_notification(self, settings: PluginSettings) -> str:
         try:

@@ -11,6 +11,18 @@
     "hint": "留空时使用远程仓库默认分支；如果 repository_url 是 /tree/分支/... 链接，会优先识别其中的分支。",
     "default": ""
   },
+  "embedding_provider_id": {
+    "type": "string",
+    "description": "嵌入模型提供商 ID",
+    "hint": "用于自动创建知识库的 Embedding Provider ID。可在 AstrBot 模型提供商配置中查看，或使用 /repo_kbs_sync_providers 列出。留空时自动选择第一个可用的 Embedding Provider。已存在的知识库不会被自动更换嵌入模型。",
+    "default": ""
+  },
+  "rerank_provider_id": {
+    "type": "string",
+    "description": "重排序模型提供商 ID",
+    "hint": "用于自动创建知识库的 Rerank Provider ID。可使用 /repo_kbs_sync_providers 列出。留空时自动选择第一个可用的 Rerank Provider；没有重排序提供商也可以留空。已存在的知识库不会被自动更换重排序模型。",
+    "default": ""
+  },
   "sync_rules": {
     "type": "template_list",
     "description": "仓库路径到知识库的映射",

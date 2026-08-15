@@ -1,5 +1,5 @@
 name: astrbot_plugin_repo_kbs_sync
 desc: 将一个 Git 仓库中不同路径的 Markdown/MDX 文档递归同步到不同 AstrBot 知识库，支持 MDX 预处理、Git 增量同步、自动建库、定时检查和通知。
 author: LunaDeerTech
-version: v0.1.0
+version: v0.2.0
 repo: https://github.com/LunaDeerTech/astrbot_plugin_repo_kbs_sync

@@ -10,6 +10,7 @@ from sqlmodel import delete
 from astrbot.core import logger
 from astrbot.core.knowledge_base.kb_helper import KBHelper
 from astrbot.core.knowledge_base.models import KBMedia, KBDocument
+from astrbot.core.provider.provider import EmbeddingProvider, RerankProvider
 
 from .config import PluginSettings
 from .scanner import SourceDocument
@@ -36,6 +37,9 @@ class KnowledgeBaseGateway:
 
     async def get_or_create(self, kb_name: str) -> KBHelper:
         kb_manager = self.context.kb_manager
+        configured_embedding_id, configured_rerank_id = (
+            await self._validate_configured_provider_ids()
+        )
         helper = await kb_manager.get_kb_by_name(kb_name)
         if helper is None:
             helper = await kb_manager.create_kb(
@@ -47,6 +51,29 @@ class KnowledgeBaseGateway:
                 chunk_size=self.settings.chunk_size,
                 chunk_overlap=self.settings.chunk_overlap,
             )
+        else:
+            if (
+                configured_embedding_id
+                and helper.kb.embedding_provider_id != configured_embedding_id
+            ):
+                logger.warning(
+                    "repo_kbs_sync will not replace the embedding provider of "
+                    "existing KB %s automatically; current=%s configured=%s",
+                    kb_name,
+                    helper.kb.embedding_provider_id,
+                    configured_embedding_id,
+                )
+            if (
+                configured_rerank_id
+                and helper.kb.rerank_provider_id != configured_rerank_id
+            ):
+                logger.warning(
+                    "repo_kbs_sync will not replace the rerank provider of "
+                    "existing KB %s automatically; current=%s configured=%s",
+                    kb_name,
+                    helper.kb.rerank_provider_id,
+                    configured_rerank_id,
+                )
         return await self._ensure_chunk_settings(helper)
 
     async def synchronize(
@@ -160,6 +187,12 @@ class KnowledgeBaseGateway:
         return updated
 
     async def _select_embedding_provider_id(self) -> str:
+        if self.settings.embedding_provider_id:
+            await self._validate_configured_embedding_provider(
+                self.settings.embedding_provider_id
+            )
+            return self.settings.embedding_provider_id
+
         provider_manager = self.context.kb_manager.provider_manager
         providers = getattr(provider_manager, "embedding_provider_insts", [])
         if not providers:
@@ -167,11 +200,17 @@ class KnowledgeBaseGateway:
         provider = providers[0]
         provider_id = provider.meta().id
         resolved = await provider_manager.get_provider_by_id(provider_id)
-        if resolved is None:
+        if not isinstance(resolved, EmbeddingProvider):
             raise ValueError(f"嵌入模型 {provider_id} 不可用，无法自动创建知识库。")
         return provider_id
 
     async def _select_rerank_provider_id(self) -> str | None:
+        if self.settings.rerank_provider_id:
+            await self._validate_configured_rerank_provider(
+                self.settings.rerank_provider_id
+            )
+            return self.settings.rerank_provider_id
+
         provider_manager = self.context.kb_manager.provider_manager
         providers = getattr(provider_manager, "rerank_provider_insts", [])
         if not providers:
@@ -179,7 +218,36 @@ class KnowledgeBaseGateway:
         provider = providers[0]
         provider_id = provider.meta().id
         resolved = await provider_manager.get_provider_by_id(provider_id)
-        return provider_id if resolved is not None else None
+        return provider_id if isinstance(resolved, RerankProvider) else None
+
+    async def _validate_configured_provider_ids(
+        self,
+    ) -> tuple[str | None, str | None]:
+        embedding_id = self.settings.embedding_provider_id
+        rerank_id = self.settings.rerank_provider_id
+        if embedding_id:
+            await self._validate_configured_embedding_provider(embedding_id)
+        if rerank_id:
+            await self._validate_configured_rerank_provider(rerank_id)
+        return embedding_id, rerank_id
+
+    async def _validate_configured_embedding_provider(self, provider_id: str) -> None:
+        provider_manager = self.context.kb_manager.provider_manager
+        provider = await provider_manager.get_provider_by_id(provider_id)
+        if not isinstance(provider, EmbeddingProvider):
+            raise ValueError(
+                f"配置的 embedding_provider_id={provider_id} 不存在，"
+                "或它不是 Embedding Provider。"
+            )
+
+    async def _validate_configured_rerank_provider(self, provider_id: str) -> None:
+        provider_manager = self.context.kb_manager.provider_manager
+        provider = await provider_manager.get_provider_by_id(provider_id)
+        if not isinstance(provider, RerankProvider):
+            raise ValueError(
+                f"配置的 rerank_provider_id={provider_id} 不存在，"
+                "或它不是 Rerank Provider。"
+            )
 
     async def _list_all_documents(self, helper: KBHelper) -> list[KBDocument]:
         documents: list[KBDocument] = []

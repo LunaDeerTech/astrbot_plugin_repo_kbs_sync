@@ -46,6 +46,8 @@ class PluginSettings:
     repository_url: str
     branch: str | None
     sync_rules: tuple[SyncRule, ...]
+    embedding_provider_id: str | None
+    rerank_provider_id: str | None
     allowed_file_types: tuple[str, ...]
     ignore_paths: tuple[PurePosixPath, ...]
     preprocess_mdx: bool
@@ -76,6 +78,10 @@ class PluginSettings:
         if not sync_rules:
             raise ConfigError("请至少配置一条启用中的 sync_rules 路径映射。")
 
+        embedding_provider_id = _optional_string(
+            config.get("embedding_provider_id")
+        )
+        rerank_provider_id = _optional_string(config.get("rerank_provider_id"))
         allowed_file_types = _parse_extensions(
             config.get("allowed_file_types", DEFAULT_ALLOWED_FILE_TYPES)
         )
@@ -85,6 +91,8 @@ class PluginSettings:
             repository_url=repository_url,
             branch=branch,
             sync_rules=tuple(sync_rules),
+            embedding_provider_id=embedding_provider_id,
+            rerank_provider_id=rerank_provider_id,
             allowed_file_types=tuple(allowed_file_types),
             ignore_paths=tuple(ignore_paths),
             preprocess_mdx=_as_bool(config.get("preprocess_mdx", True), True),
